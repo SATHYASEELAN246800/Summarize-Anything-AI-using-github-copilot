@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summarize Anything AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-gray-800 min-h-screen text-white" 
+      x-data="app()">
+    
+    <!-- Header -->
+    <header class="p-4 border-b border-gray-700 backdrop-blur-md bg-black/30">
+        <div class="container mx-auto flex items-center justify-between">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                Summarize Anything AI
+            </h1>
+            <div class="flex gap-4">
+                <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                        </path>
+                    </svg>
+                </button>
+                <select @change="changeLanguage" class="bg-transparent border border-gray-600 rounded-lg">
+                    <option value="en">English</option>
+                    <option value="ta">Tamil</option>
+                    <option value="hi">Hindi</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Panel - Input & Settings -->
+        <div class="lg:col-span-3 space-y-6">
+            <div class="rounded-2xl backdrop-blur-md bg-white/10 p-6 space-y-4">
+                <h2 class="text-xl font-semibold">Input</h2>
+                
+                <!-- Input Type Selector -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium">Input Type</label>
+                    <select x-model="inputType" 
+                            class="w-full bg-gray-800 border border-gray-600 rounded-xl p-2">
+                        <option value="url">URL (YouTube, Drive, etc.)</option>
+                        <option value="file">File Upload</option>
+                        <option value="text">Raw Text</option>
+                    </select>
+                </div>
+
+                <!-- URL Input -->
+                <div x-show="inputType === 'url'" class="space-y-2">
+                    <label class="block text-sm font-medium">URL</label>
+                    <input type="url" x-model="url" 
+                           class="w-full bg-gray-800 border border-gray-600 rounded-xl p-2"
+                           placeholder="Paste URL here...">
+                </div>
+
+                <!-- File Upload -->
+                <div x-show="inputType === 'file'" class="space-y-2">
+                    <label class="block text-sm font-medium">Upload File</label>
+                    <input type="file" @change="handleFileUpload"
+                           class="w-full bg-gray-800 border border-gray-600 rounded-xl p-2"
+                           accept=".pdf,.doc,.docx,.txt,.mp3,.mp4,.wav">
+                </div>
+
+                <!-- Text Input -->
+                <div x-show="inputType === 'text'" class="space-y-2">
+                    <label class="block text-sm font-medium">Text Content</label>
+                    <textarea x-model="rawText" rows="5"
+                              class="w-full bg-gray-800 border border-gray-600 rounded-xl p-2"
+                              placeholder="Paste text here..."></textarea>
+                </div>
+
+                <!-- Model Selection -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium">Model</label>
+                    <select x-model="selectedModel" 
+                            class="w-full bg-gray-800 border border-gray-600 rounded-xl p-2">
+                        <option value="facebook/bart-large-cnn">BART (Fast)</option>
+                        <option value="Qwen/Qwen2.5-7B-Instruct">Qwen (Detailed)</option>
+                        <option value="mistralai/Mistral-7B-Instruct-v0.3">Mistral (Balanced)</option>
+                    </select>
+                </div>
+
+                <!-- Submit Button -->
+                <button @click="submitJob" 
+                        class="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-500 
+                               rounded-xl font-medium hover:opacity-90 transition-opacity"
+                        :disabled="processing">
+                    <span x-show="!processing">Start Processing</span>
+                    <span x-show="processing">Processing...</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Center Panel - Preview & Progress -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="rounded-2xl backdrop-blur-md bg-white/10 p-6 space-y-4">
+                <h2 class="text-xl font-semibold">Preview & Progress</h2>
+
+                <!-- Media Preview -->
+                <div x-show="mediaUrl" class="aspect-video bg-black rounded-xl overflow-hidden">
+                    <video x-show="isVideo" :src="mediaUrl" controls class="w-full h-full"></video>
+                    <audio x-show="isAudio" :src="mediaUrl" controls class="w-full"></audio>
+                    <img x-show="isImage" :src="mediaUrl" class="w-full h-full object-contain">
+                </div>
+
+                <!-- Progress Timeline -->
+                <div class="space-y-4">
+                    <div class="flex justify-between text-sm">
+                        <span x-text="currentStage">Initializing...</span>
+                        <span x-text="Math.round(progress * 100) + '%'">0%</span>
+                    </div>
+                    <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                             :style="'width: ' + (progress * 100) + '%'"></div>
+                    </div>
+                </div>
+
+                <!-- Transcript -->
+                <div x-show="transcript" class="space-y-2">
+                    <h3 class="font-medium">Transcript</h3>
+                    <div class="max-h-96 overflow-y-auto bg-gray-800 rounded-xl p-4">
+                        <p x-text="transcript" class="whitespace-pre-wrap"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Results -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="rounded-2xl backdrop-blur-md bg-white/10 p-6 space-y-4">
+                <h2 class="text-xl font-semibold">Results</h2>
+
+                <!-- Summary Tabs -->
+                <div class="border-b border-gray-700">
+                    <nav class="flex space-x-4">
+                        <button @click="activeTab = 'short'"
+                                :class="activeTab === 'short' ? 'border-blue-500' : 'border-transparent'"
+                                class="px-4 py-2 border-b-2 font-medium">
+                            Short
+                        </button>
+                        <button @click="activeTab = 'detailed'"
+                                :class="activeTab === 'detailed' ? 'border-blue-500' : 'border-transparent'"
+                                class="px-4 py-2 border-b-2 font-medium">
+                            Detailed
+                        </button>
+                        <button @click="activeTab = 'bullets'"
+                                :class="activeTab === 'bullets' ? 'border-blue-500' : 'border-transparent'"
+                                class="px-4 py-2 border-b-2 font-medium">
+                            Bullets
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Summary Content -->
+                <div class="space-y-4">
+                    <div x-show="activeTab === 'short'" class="space-y-2">
+                        <p x-text="summaries.short" class="text-sm"></p>
+                    </div>
+                    <div x-show="activeTab === 'detailed'" class="space-y-2">
+                        <p x-text="summaries.detailed" class="text-sm"></p>
+                    </div>
+                    <div x-show="activeTab === 'bullets'" class="space-y-2">
+                        <ul class="list-disc list-inside text-sm">
+                            <template x-for="point in summaries.bullets">
+                                <li x-text="point"></li>
+                            </template>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="space-y-2">
+                    <h3 class="font-medium">Export</h3>
+                    <div class="flex space-x-2">
+                        <button @click="exportPDF" 
+                                class="px-4 py-2 bg-gray-700 rounded-lg text-sm hover:bg-gray-600">
+                            PDF Report
+                        </button>
+                        <button @click="exportMarkdown"
+                                class="px-4 py-2 bg-gray-700 rounded-lg text-sm hover:bg-gray-600">
+                            Markdown
+                        </button>
+                        <button @click="downloadTranscript"
+                                class="px-4 py-2 bg-gray-700 rounded-lg text-sm hover:bg-gray-600">
+                            Transcript
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
